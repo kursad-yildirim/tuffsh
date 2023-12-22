@@ -1,0 +1,15 @@
+{
+    "version": "0.1.0",
+    "configurations": [
+      {
+        "name": "tuffsh",
+        "type": "go",
+        "request": "launch",
+        "console": "integratedTerminal",
+        "mode": "auto",
+        "program": "${workspaceFolder}",
+        //"envFile": "${workspaceFolder}/5.concurrency/ssh/ssh.env",
+        "args": []
+      }
+    ]
+  }
