@@ -18,7 +18,7 @@ func CheckArgs() (Destination, error) {
 		fmt.Println(e)
 		return d, e
 	}
-	fmt.Printf("ssh connection will be established to %#v with user %#v\n", d.Host, d.User)
+	fmt.Printf("ssh connection will be established to \"%v:%v\" with user %#v\n", d.Host, d.Port, d.User)
 	return d, nil
 }
 
