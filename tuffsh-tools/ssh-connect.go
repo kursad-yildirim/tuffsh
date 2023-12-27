@@ -9,14 +9,16 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"syscall"
 	"tuffsh/tuff-tools"
 
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/knownhosts"
+	"golang.org/x/term"
 )
 
-func prepareSigner() (ssh.Signer, error) {
-	k, e := os.ReadFile(defaultPrivateKeyFile)
+func prepareSigner(userKeyFile string) (ssh.Signer, error) {
+	k, e := os.ReadFile(userKeyFile)
 	if e != nil {
 		return nil, e
 	}
@@ -31,7 +33,7 @@ func prepareSigner() (ssh.Signer, error) {
 func verifySshServer(host string, remote net.Addr, key ssh.PublicKey) error {
 	reader := bufio.NewReader(os.Stdin)
 	var wrongKey *knownhosts.KeyError
-	callback, e := knownhosts.New(defaultKnownHostsFile)
+	callback, e := knownhosts.New(tuff.D.HostKey)
 	if e != nil {
 		return fmt.Errorf("error:  Known hosts file read error %#v", e)
 	}
@@ -50,7 +52,7 @@ func verifySshServer(host string, remote net.Addr, key ssh.PublicKey) error {
 	}
 
 	if strings.ToLower(strings.TrimSpace(r)) == "yes" {
-		f, e := os.OpenFile(defaultKnownHostsFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
+		f, e := os.OpenFile(tuff.D.HostKey, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
 		if e != nil {
 			return e
 		}
@@ -68,7 +70,7 @@ func verifySshServer(host string, remote net.Addr, key ssh.PublicKey) error {
 }
 
 func createSession(d tuff.Destination) (*ssh.Session, error) {
-	signer, e := prepareSigner()
+	signer, e := prepareSigner(d.UserKey)
 	if e != nil {
 		return nil, fmt.Errorf("private key read error: %s", e)
 	}
@@ -80,7 +82,25 @@ func createSession(d tuff.Destination) (*ssh.Session, error) {
 		HostKeyCallback: verifySshServer,
 	}
 	client, e := ssh.Dial("tcp", d.Host+":"+d.Port, config)
-	if e != nil {
+	if strings.Contains(fmt.Sprintf("%v", e), "unable to authenticate") {
+		fmt.Printf("Password for %#v: ", d.User)
+		bytePassword, e := term.ReadPassword(int(syscall.Stdin))
+		if e != nil {
+			return nil, e
+		}
+		userPass := string(bytePassword)
+		config := &ssh.ClientConfig{
+			User: d.User,
+			Auth: []ssh.AuthMethod{
+				ssh.Password(userPass),
+			},
+			HostKeyCallback: verifySshServer,
+		}
+		client, e = ssh.Dial("tcp", d.Host+":"+d.Port, config)
+		if e != nil {
+			return nil, fmt.Errorf("client creation error: %s", e)
+		}
+	} else if e != nil {
 		return nil, fmt.Errorf("client creation error: %s", e)
 	}
 	session, e := client.NewSession()

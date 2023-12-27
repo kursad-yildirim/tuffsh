@@ -10,7 +10,11 @@
         "program": "${workspaceFolder}",
         //"envFile": "${workspaceFolder}/5.concurrency/ssh/ssh.env",
         "args": [
-          "charon.tuff.local"
+          "-i",
+          "./.ssh/id_rsa",
+          "-k",
+          "./.ssh/known_hosts",
+          "trip@charon.tuff.local",
       ]
       }
     ]

@@ -1,33 +1,40 @@
 package tuff
 
 import (
+	"flag"
 	"fmt"
-	"os"
 	"os/user"
 	"runtime"
 	"strings"
 )
 
-func CheckArgs() (Destination, error) {
-	var d Destination
-	if len(os.Args) != 2 {
+func CheckArgs() error {
+	flag.StringVar(&D.UserKey, "i", defaultPrivateKeyFile, "User private key path")
+	flag.StringVar(&D.HostKey, "k", defaultKnownHostsFile, "Known hosts path")
+	flag.BoolVar(&help, "h", false, "Print usage")
+	flag.Parse()
+	switch {
+	case help:
 		printUsage()
-		return d, fmt.Errorf("error: you must specify destination ssh server")
+		return fmt.Errorf("help requested")
+	case len(flag.Args()) != 1:
+		printUsage()
+		return fmt.Errorf("error: you must specify destination ssh server")
+	default:
+		if e := D.get(); e != nil {
+			fmt.Println(e)
+			return e
+		}
+		return nil
 	}
-	if e := d.get(); e != nil {
-		fmt.Println(e)
-		return d, e
-	}
-	fmt.Printf("ssh connection will be established to \"%v:%v\" with user %#v\n", d.Host, d.Port, d.User)
-	return d, nil
 }
 
 func printUsage() {
-	fmt.Printf("usage: ssh [user@]destination[:port]\n")
+	fmt.Printf("usage: tuffsh [-i identity_file] [-k known_hosts_file] [user@]destination[:port]\n")
 }
 
 func (d *Destination) getPort() error {
-	darr := strings.Split(os.Args[1], ":")
+	darr := strings.Split(flag.Args()[0], ":")
 	switch {
 	case len(darr) == 1:
 		d.Port = "22"
@@ -42,7 +49,7 @@ func (d *Destination) getPort() error {
 
 func (d *Destination) getUser() error {
 	switch {
-	case len(strings.Split(os.Args[1], "@")) == 1:
+	case len(strings.Split(flag.Args()[0], "@")) == 1:
 		if runtime.GOOS == "linux" || runtime.GOOS == "darwin" {
 			user, e := user.Current()
 			if e != nil {
@@ -53,8 +60,8 @@ func (d *Destination) getUser() error {
 		} else {
 			return fmt.Errorf("error: When OS is not Linux or MacOS, username is required in format user@destination[:port]")
 		}
-	case len(strings.Split(os.Args[1], "@")) == 2:
-		d.User = strings.Split(os.Args[1], "@")[0]
+	case len(strings.Split(flag.Args()[0], "@")) == 2:
+		d.User = strings.Split(flag.Args()[0], "@")[0]
 		return nil
 	default:
 		return fmt.Errorf("error: destination must be in format [user@]destination[:port]")
@@ -68,15 +75,15 @@ func (d *Destination) get() error {
 	if e := d.getUser(); e != nil {
 		return e
 	}
-	if len(strings.Split(os.Args[1], ":")) > 2 {
+	if len(strings.Split(flag.Args()[0], ":")) > 2 {
 		return fmt.Errorf("error: destination must be in format [user@]destination[:port]")
 	}
 	switch {
-	case len(strings.Split(strings.Split(os.Args[1], ":")[0], "@")) == 1:
-		d.Host = strings.Split(strings.Split(os.Args[1], ":")[0], "@")[0]
+	case len(strings.Split(strings.Split(flag.Args()[0], ":")[0], "@")) == 1:
+		d.Host = strings.Split(strings.Split(flag.Args()[0], ":")[0], "@")[0]
 		return nil
-	case len(strings.Split(strings.Split(os.Args[1], ":")[0], "@")) == 2:
-		d.Host = strings.Split(strings.Split(os.Args[1], ":")[0], "@")[1]
+	case len(strings.Split(strings.Split(flag.Args()[0], ":")[0], "@")) == 2:
+		d.Host = strings.Split(strings.Split(flag.Args()[0], ":")[0], "@")[1]
 		return nil
 	default:
 		return fmt.Errorf("error: destination must be in format user@destination")
