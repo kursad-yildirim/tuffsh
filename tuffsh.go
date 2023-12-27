@@ -5,16 +5,22 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"tuffsh/tuff-tools"
 	tuffshtools "tuffsh/tuffsh-tools"
 )
 
 func main() {
-	fmt.Println("TuffSH - SSH Client")
-	in, out, e := tuffshtools.TuffSSH(tuffshtools.Host, tuffshtools.Port)
+	var d tuff.Destination
+	d, e := tuff.CheckArgs()
 	if e != nil {
-		log.Fatalf("Error: SSH to %#v failed with %#v", tuffshtools.Host, fmt.Sprintf("%s", e))
+		//fmt.Println(e)
+		return
 	}
-	fmt.Printf("Tuff SSH Client connected to %#v:\n", tuffshtools.Host)
+	in, out, e := tuffshtools.TuffSSH(d)
+	if e != nil {
+		log.Fatalf("Error: SSH to %#v failed with %#v", d.Host, fmt.Sprintf("%s", e))
+	}
+	fmt.Printf("Tuff SSH Client connected to %#v:\n", d.Host)
 	reader := bufio.NewScanner(os.Stdin)
 	fmt.Printf("%s", <-out)
 	for reader.Scan() {
@@ -29,5 +35,5 @@ func main() {
 		}()
 	}
 	in <- reader.Text()
-	fmt.Printf("Tuff SSH session to %#v ended:\n", tuffshtools.Host)
+	fmt.Printf("Tuff SSH session to %#v ended:\n", d.Host)
 }

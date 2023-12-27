@@ -9,7 +9,9 @@
         "mode": "auto",
         "program": "${workspaceFolder}",
         //"envFile": "${workspaceFolder}/5.concurrency/ssh/ssh.env",
-        "args": []
+        "args": [
+          "charon.tuff.local"
+      ]
       }
     ]
   }

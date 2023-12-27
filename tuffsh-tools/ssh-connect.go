@@ -9,6 +9,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"tuffsh/tuff-tools"
 
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/knownhosts"
@@ -66,19 +67,19 @@ func verifySshServer(host string, remote net.Addr, key ssh.PublicKey) error {
 	return fmt.Errorf("unknown error occured")
 }
 
-func createSession(h, p string) (*ssh.Session, error) {
+func createSession(d tuff.Destination) (*ssh.Session, error) {
 	signer, e := prepareSigner()
 	if e != nil {
 		return nil, fmt.Errorf("private key read error: %s", e)
 	}
 	config := &ssh.ClientConfig{
-		User: "trip",
+		User: d.User,
 		Auth: []ssh.AuthMethod{
 			ssh.PublicKeys(signer),
 		},
 		HostKeyCallback: verifySshServer,
 	}
-	client, e := ssh.Dial("tcp", h+":"+p, config)
+	client, e := ssh.Dial("tcp", d.Host+":"+d.Port, config)
 	if e != nil {
 		return nil, fmt.Errorf("client creation error: %s", e)
 	}
@@ -100,12 +101,12 @@ func createSession(h, p string) (*ssh.Session, error) {
 	return session, nil
 }
 
-func TuffSSH(h, p string) (chan<- string, <-chan string, error) {
+func TuffSSH(d tuff.Destination) (chan<- string, <-chan string, error) {
 	in := make(chan string, 1)
 	out := make(chan string, 1)
 	var wg sync.WaitGroup
 
-	session, e := createSession(h, p)
+	session, e := createSession(d)
 	if e != nil {
 		return nil, nil, fmt.Errorf("session create  failed: %s", e)
 	}
