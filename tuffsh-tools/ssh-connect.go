@@ -148,18 +148,24 @@ func TuffSSH(d tuff.Destination) (chan<- string, <-chan string, error) {
 	}()
 	go func() {
 		var buffer [16 * 1024]byte
+		i := 0
 		for {
+			i++
 			n, err := r.Read(buffer[:])
 			if err != nil {
 				close(in)
 				close(out)
 				return
 			}
+			if i == 1 && !strings.Contains(string(buffer[:n]), d.User) {
+				continue
+			}
 			if string(buffer[n-2:n]) == "\r\n" {
-				out <- string(buffer[:n])
+				out <- string(string(buffer[:n]))
 			}
 			if buffer[n-2] == '$' || buffer[n-2] == '#' {
-				out <- string(buffer[:n])
+				out <- strings.ReplaceAll(string(buffer[:n]), "\r\r\n", "")
+				i = 0
 				wg.Done()
 			}
 		}

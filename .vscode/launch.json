@@ -14,7 +14,7 @@
           "./.ssh/id_rsa",
           "-k",
           "./.ssh/known_hosts",
-          "trip@charon.tuff.local",
+          "trip@88.1.72.195:52322",
       ]
       }
     ]

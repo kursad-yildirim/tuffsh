@@ -18,9 +18,10 @@ func main() {
 	if e != nil {
 		log.Fatalf("Error: SSH to %#v failed with %#v", tuff.D.Host, fmt.Sprintf("%s", e))
 	}
-	fmt.Printf("Tuff SSH Client connected to %#v:\n", tuff.D.Host)
+	fmt.Printf("Tuff SSH Client connected to %#v.\n", tuff.D.Host)
 	reader := bufio.NewScanner(os.Stdin)
-	fmt.Printf("%s", <-out)
+	resp := <-out
+	fmt.Printf("%s", resp)
 	for reader.Scan() {
 		if reader.Text() == "exit" {
 			break
@@ -28,10 +29,10 @@ func main() {
 		in <- reader.Text()
 		go func() {
 			for resp := range out {
-				fmt.Printf("%s", resp)
+				fmt.Printf("%v", resp)
 			}
 		}()
 	}
 	in <- reader.Text()
-	fmt.Printf("Tuff SSH session to %#v ended:\n", tuff.D.Host)
+	fmt.Printf("Tuff SSH session to %#v ended.\n", tuff.D.Host)
 }
