@@ -1,18 +1,17 @@
 package main
 
 import (
-	"log"
-	"tuffsh/tuff-tools"
+	"fmt"
 	tuffshtools "tuffsh/tuffsh-tools"
 )
 
 func main() {
-	e := tuff.CheckArgs()
+	e := tuffshtools.CheckArgs()
 	if e != nil {
 		return
 	}
-	e = tuffshtools.CreateSession(tuff.D)
+	e = tuffshtools.CreateSession()
 	if e != nil {
-		log.Fatalf("session create  failed: %s", e)
+		fmt.Printf("\n%s", e)
 	}
 }
