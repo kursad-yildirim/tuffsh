@@ -13,6 +13,7 @@ import (
 
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/knownhosts"
+	"golang.org/x/crypto/ssh/terminal"
 	"golang.org/x/term"
 )
 
@@ -68,10 +69,10 @@ func verifySshServer(host string, remote net.Addr, key ssh.PublicKey) error {
 	return fmt.Errorf("unknown error occured")
 }
 
-func CreateSession(d tuff.Destination) (*ssh.Session, error) {
+func CreateSession(d tuff.Destination) error {
 	signer, e := prepareSigner(d.UserKey)
 	if e != nil {
-		return nil, fmt.Errorf("private key read error: %s", e)
+		return fmt.Errorf("private key read error: %s", e)
 	}
 	config := &ssh.ClientConfig{
 		User: d.User,
@@ -85,7 +86,7 @@ func CreateSession(d tuff.Destination) (*ssh.Session, error) {
 		fmt.Printf("Password for %#v: ", d.User)
 		bytePassword, e := term.ReadPassword(int(syscall.Stdin))
 		if e != nil {
-			return nil, e
+			return e
 		}
 		userPass := string(bytePassword)
 		config := &ssh.ClientConfig{
@@ -97,25 +98,48 @@ func CreateSession(d tuff.Destination) (*ssh.Session, error) {
 		}
 		client, e = ssh.Dial("tcp", d.Host+":"+d.Port, config)
 		if e != nil {
-			return nil, fmt.Errorf("client creation error: %s", e)
+			return fmt.Errorf("client creation error: %s", e)
 		}
 	} else if e != nil {
-		return nil, fmt.Errorf("client creation error: %s", e)
+		return fmt.Errorf("client creation error: %s", e)
 	}
 	session, e := client.NewSession()
 	if e != nil {
-		return nil, fmt.Errorf("session create error: %s", e)
+		return fmt.Errorf("session create error: %s", e)
 	}
+	session.Stdout = os.Stdout
+	session.Stderr = os.Stderr
+	session.Stdin = os.Stdin
 
 	modes := ssh.TerminalModes{
-		ssh.ECHO:          0,
+		ssh.ECHO:          1,
 		ssh.TTY_OP_ISPEED: 14400,
 		ssh.TTY_OP_OSPEED: 14400,
 	}
 
-	if e := session.RequestPty("vt100", 80, 40, modes); e != nil {
-		return nil, fmt.Errorf("pty error: %s", e)
+	fileDescriptor := int(os.Stdin.Fd())
+	if terminal.IsTerminal(fileDescriptor) {
+		originalState, e := terminal.MakeRaw(fileDescriptor)
+		if e != nil {
+			return e
+		}
+		defer terminal.Restore(fileDescriptor, originalState)
+
+		termWidth, termHeight, e := terminal.GetSize(fileDescriptor)
+		if e != nil {
+			return e
+		}
+
+		e = session.RequestPty("xterm-256color", termHeight, termWidth, modes)
+		if e != nil {
+			return e
+		}
 	}
 
-	return session, nil
+	e = session.Shell()
+	if e != nil {
+		return e
+	}
+	session.Wait()
+	return nil
 }
