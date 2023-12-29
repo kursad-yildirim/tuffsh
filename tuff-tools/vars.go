@@ -1,7 +1,8 @@
 package tuff
 
-const defaultPrivateKeyFile = "./.ssh/id_rsa"
-const defaultKnownHostsFile = "./.ssh/known_hosts"
+const defaultPrivateKeyFile = ".ssh/id_rsa"
+const defaultKnownHostsFile = ".ssh/known_hosts"
+const defaultSshPort = "22"
 
 type Destination struct {
 	User    string

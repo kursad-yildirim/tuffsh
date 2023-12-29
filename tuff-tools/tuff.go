@@ -3,14 +3,16 @@ package tuff
 import (
 	"flag"
 	"fmt"
+	"os"
 	"os/user"
 	"runtime"
 	"strings"
 )
 
 func CheckArgs() error {
-	flag.StringVar(&D.UserKey, "i", defaultPrivateKeyFile, "User private key path")
-	flag.StringVar(&D.HostKey, "k", defaultKnownHostsFile, "Known hosts path")
+	userHome, _ := os.UserHomeDir()
+	flag.StringVar(&D.UserKey, "i", userHome+"/"+defaultPrivateKeyFile, "User private key path")
+	flag.StringVar(&D.HostKey, "k", userHome+"/"+defaultKnownHostsFile, "Known hosts path")
 	flag.BoolVar(&help, "h", false, "Print usage")
 	flag.Parse()
 	switch {
@@ -37,7 +39,7 @@ func (d *Destination) getPort() error {
 	darr := strings.Split(flag.Args()[0], ":")
 	switch {
 	case len(darr) == 1:
-		d.Port = "22"
+		d.Port = defaultSshPort
 		return nil
 	case len(darr) == 2:
 		d.Port = darr[1]
