@@ -8,7 +8,6 @@ import (
 	"net"
 	"os"
 	"strings"
-	"sync"
 	"syscall"
 	"tuffsh/tuff-tools"
 
@@ -69,7 +68,7 @@ func verifySshServer(host string, remote net.Addr, key ssh.PublicKey) error {
 	return fmt.Errorf("unknown error occured")
 }
 
-func createSession(d tuff.Destination) (*ssh.Session, error) {
+func CreateSession(d tuff.Destination) (*ssh.Session, error) {
 	signer, e := prepareSigner(d.UserKey)
 	if e != nil {
 		return nil, fmt.Errorf("private key read error: %s", e)
@@ -119,61 +118,4 @@ func createSession(d tuff.Destination) (*ssh.Session, error) {
 	}
 
 	return session, nil
-}
-
-func TuffSSH(d tuff.Destination) (chan<- string, <-chan string, error) {
-	in := make(chan string, 1)
-	out := make(chan string, 1)
-	var wg sync.WaitGroup
-
-	session, e := createSession(d)
-	if e != nil {
-		return nil, nil, fmt.Errorf("session create  failed: %s", e)
-	}
-	w, e := session.StdinPipe()
-	if e != nil {
-		return nil, nil, fmt.Errorf("StdinPipe error: %s", e)
-	}
-	r, e := session.StdoutPipe()
-	if e != nil {
-		return nil, nil, fmt.Errorf("StdoutPipe error: %s", e)
-	}
-	wg.Add(1)
-	go func() {
-		for cmd := range in {
-			wg.Add(1)
-			w.Write([]byte(cmd + "\n"))
-			wg.Wait()
-		}
-	}()
-	go func() {
-		var buffer [32 * 1024]byte
-		i := 0
-		for {
-			i++
-			n, e := r.Read(buffer[:])
-			if e != nil {
-				close(in)
-				close(out)
-				return
-			}
-			if string(buffer[n-2:n]) == "\r\n" {
-				if i == 1 {
-					continue
-				}
-				out <- string(buffer[:n])
-			}
-			if buffer[n-2] == '$' || buffer[n-2] == '#' {
-				out <- strings.ReplaceAll(string(buffer[:n]), "\r\r\n", "")
-				i = 0
-				wg.Done()
-			}
-		}
-	}()
-
-	if err := session.Start("/bin/bash"); err != nil {
-		return nil, nil, fmt.Errorf("session start failed %#v", err)
-	}
-	return in, out, nil
-
 }
