@@ -12,11 +12,12 @@ import (
 )
 
 func main() {
+	sessionAlive := true
 	e := tuff.CheckArgs()
 	if e != nil {
 		return
 	}
-	var wg, mwg sync.WaitGroup
+	var mwg sync.WaitGroup
 	session, e := tuffshtools.CreateSession(tuff.D)
 	if e != nil {
 		log.Fatalf("session create  failed: %s", e)
@@ -35,19 +36,12 @@ func main() {
 
 	fmt.Printf("Tuff SSH Client connected to %#v.\n", tuff.D.Host)
 	mwg.Add(1)
-	wg.Add(1)
 	go func() {
-		reader := bufio.NewScanner(os.Stdin)
-		for reader.Scan() {
-			if reader.Text() == "exit" {
-				break
-			}
-			wg.Add(1)
-			w.Write([]byte(reader.Text() + "\n"))
-			wg.Wait()
+		reader := bufio.NewReader(os.Stdin)
+		for sessionAlive {
+			cmd, _ := reader.ReadString('\n')
+			w.Write([]byte(cmd))
 		}
-		w.Write([]byte(reader.Text() + "\n"))
-		fmt.Printf("Tuff SSH session to %#v ended.\n", tuff.D.Host)
 	}()
 	go func() {
 		var buffer [32 * 1024]byte
@@ -57,18 +51,17 @@ func main() {
 			n, e := r.Read(buffer[:])
 			if e != nil {
 				mwg.Done()
+				fmt.Printf("Tuff SSH session to %#v ended.\n", tuff.D.Host)
+				sessionAlive = false
 				return
-			}
-			if string(buffer[n-2:n]) == "\r\n" {
-				/*if i == 1 {
-					continue
-				}*/
-				fmt.Printf("%v", string(buffer[:n]))
 			}
 			if buffer[n-2] == '$' || buffer[n-2] == '#' {
 				fmt.Printf("%v", strings.ReplaceAll(string(buffer[:n]), "\r\r\n", ""))
 				i = 0
-				wg.Done()
+				continue
+			}
+			if !strings.Contains(string(buffer[:n]), "\r\r\n") {
+				fmt.Printf("%v", string(buffer[:n]))
 			}
 		}
 	}()
