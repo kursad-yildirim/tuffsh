@@ -10,7 +10,7 @@ func main() {
 	if e != nil {
 		return
 	}
-	e = tuffshtools.CreateSession()
+	e = tuffshtools.InitiateSSH()
 	if e != nil {
 		fmt.Printf("\n%s", e)
 	}

@@ -3,21 +3,109 @@ package tuffshtools
 import (
 	"bufio"
 	"errors"
-	"flag"
 	"fmt"
 	"log"
 	"net"
 	"os"
-	"os/user"
-	"runtime"
 	"strings"
 	"syscall"
 
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/knownhosts"
-	"golang.org/x/crypto/ssh/terminal"
 	"golang.org/x/term"
 )
+
+func InitiateSSH() error {
+	c, e := createClient()
+	if e != nil {
+		return e
+	}
+	s, e := c.NewSession()
+	if e != nil {
+		return e
+	}
+	s.Stdout = os.Stdout
+	s.Stderr = os.Stderr
+	s.Stdin = os.Stdin
+	m := ssh.TerminalModes{
+		ssh.ECHO:          1,
+		ssh.TTY_OP_ISPEED: 14400,
+		ssh.TTY_OP_OSPEED: 14400,
+	}
+	f := int(os.Stdin.Fd())
+	if term.IsTerminal(f) {
+		o, e := term.MakeRaw(f)
+		if e != nil {
+			return e
+		}
+		defer term.Restore(f, o)
+		w, h, e := term.GetSize(f)
+		if e != nil {
+			return e
+		}
+		e = s.RequestPty("xterm-256color", h, w, m)
+		if e != nil {
+			return e
+		}
+	}
+	e = s.Shell()
+	if e != nil {
+		return e
+	}
+	s.Wait()
+	return nil
+}
+
+func createClient() (*ssh.Client, error) {
+	c, e := dialPrivateKey()
+	if strings.Contains(fmt.Sprintf("%v", e), "unable to authenticate") {
+		c, e = dialPassword()
+		if e != nil {
+			return nil, fmt.Errorf("unable to authenticate")
+		}
+	} else if e != nil {
+		return nil, fmt.Errorf("client creation error: %s", e)
+	}
+	return c, nil
+}
+
+func dialPrivateKey() (*ssh.Client, error) {
+	s, e := prepareSigner(d.UserKey)
+	if e != nil {
+		return nil, fmt.Errorf("private key read error: %s", e)
+	}
+
+	config := &ssh.ClientConfig{
+		User: d.User,
+		Auth: []ssh.AuthMethod{
+			ssh.PublicKeys(s),
+		},
+		HostKeyCallback: verifySshServer,
+	}
+	c, e := ssh.Dial("tcp", d.Host+":"+d.Port, config)
+
+	return c, e
+
+}
+
+func dialPassword() (*ssh.Client, error) {
+	fmt.Printf("Password for %#v: ", d.User)
+	bytePassword, e := term.ReadPassword(int(syscall.Stdin))
+	if e != nil {
+		return nil, e
+	}
+	userPass := string(bytePassword)
+	config := &ssh.ClientConfig{
+		User: d.User,
+		Auth: []ssh.AuthMethod{
+			ssh.Password(userPass),
+		},
+		HostKeyCallback: verifySshServer,
+	}
+	c, e := ssh.Dial("tcp", d.Host+":"+d.Port, config)
+
+	return c, e
+}
 
 func prepareSigner(userKeyFile string) (ssh.Signer, error) {
 	k, e := os.ReadFile(userKeyFile)
@@ -69,171 +157,4 @@ func verifySshServer(host string, remote net.Addr, key ssh.PublicKey) error {
 	}
 
 	return fmt.Errorf("unknown error occured")
-}
-
-func CreateSession() error {
-	c, e := dialPrivateKey()
-	if strings.Contains(fmt.Sprintf("%v", e), "unable to authenticate") {
-		c, e = dialPassword()
-		if e != nil {
-			return fmt.Errorf("unable to authenticate")
-		}
-	} else if e != nil {
-		return fmt.Errorf("client creation error: %s", e)
-	}
-	s, e := c.NewSession()
-	if e != nil {
-		return fmt.Errorf("session create error: %s", e)
-	}
-	s.Stdout = os.Stdout
-	s.Stderr = os.Stderr
-	s.Stdin = os.Stdin
-	m := ssh.TerminalModes{
-		ssh.ECHO:          1,
-		ssh.TTY_OP_ISPEED: 14400,
-		ssh.TTY_OP_OSPEED: 14400,
-	}
-	f := int(os.Stdin.Fd())
-	if terminal.IsTerminal(f) {
-		o, e := terminal.MakeRaw(f)
-		if e != nil {
-			return e
-		}
-		defer terminal.Restore(f, o)
-		w, h, e := terminal.GetSize(f)
-		if e != nil {
-			return e
-		}
-		e = s.RequestPty("xterm-256color", h, w, m)
-		if e != nil {
-			return e
-		}
-	}
-	e = s.Shell()
-	if e != nil {
-		return e
-	}
-	s.Wait()
-	return nil
-}
-
-func dialPrivateKey() (*ssh.Client, error) {
-	s, e := prepareSigner(d.UserKey)
-	if e != nil {
-		return nil, fmt.Errorf("private key read error: %s", e)
-	}
-
-	config := &ssh.ClientConfig{
-		User: d.User,
-		Auth: []ssh.AuthMethod{
-			ssh.PublicKeys(s),
-		},
-		HostKeyCallback: verifySshServer,
-	}
-	c, e := ssh.Dial("tcp", d.Host+":"+d.Port, config)
-
-	return c, e
-
-}
-
-func dialPassword() (*ssh.Client, error) {
-	fmt.Printf("Password for %#v: ", d.User)
-	bytePassword, e := term.ReadPassword(int(syscall.Stdin))
-	if e != nil {
-		return nil, e
-	}
-	userPass := string(bytePassword)
-	config := &ssh.ClientConfig{
-		User: d.User,
-		Auth: []ssh.AuthMethod{
-			ssh.Password(userPass),
-		},
-		HostKeyCallback: verifySshServer,
-	}
-	c, e := ssh.Dial("tcp", d.Host+":"+d.Port, config)
-
-	return c, e
-}
-
-func CheckArgs() error {
-	userHome, _ := os.UserHomeDir()
-	flag.StringVar(&d.UserKey, "i", userHome+"/"+defaultPrivateKeyFile, "User private key path")
-	flag.StringVar(&d.HostKey, "k", userHome+"/"+defaultKnownHostsFile, "Known hosts path")
-	flag.BoolVar(&help, "h", false, "Print usage")
-	flag.Parse()
-	switch {
-	case help:
-		printUsage()
-		return fmt.Errorf("help requested")
-	case len(flag.Args()) != 1:
-		printUsage()
-		return fmt.Errorf("error: you must specify destination ssh server")
-	default:
-		if e := d.get(); e != nil {
-			fmt.Println(e)
-			return e
-		}
-		return nil
-	}
-}
-
-func printUsage() {
-	fmt.Printf("usage: tuffsh [-i identity_file] [-k known_hosts_file] [user@]destination[:port]\n")
-}
-
-func (d *destination) getPort() error {
-	darr := strings.Split(flag.Args()[0], ":")
-	switch {
-	case len(darr) == 1:
-		d.Port = defaultSshPort
-		return nil
-	case len(darr) == 2:
-		d.Port = darr[1]
-		return nil
-	default:
-		return fmt.Errorf("error: destination must be in format [user@]destination[:port]")
-	}
-}
-
-func (d *destination) getUser() error {
-	switch {
-	case len(strings.Split(flag.Args()[0], "@")) == 1:
-		if runtime.GOOS == "linux" || runtime.GOOS == "darwin" {
-			user, e := user.Current()
-			if e != nil {
-				return e
-			}
-			d.User = user.Username
-			return nil
-		} else {
-			return fmt.Errorf("error: When OS is not Linux or MacOS, username is required in format user@destination[:port]")
-		}
-	case len(strings.Split(flag.Args()[0], "@")) == 2:
-		d.User = strings.Split(flag.Args()[0], "@")[0]
-		return nil
-	default:
-		return fmt.Errorf("error: destination must be in format [user@]destination[:port]")
-	}
-}
-
-func (d *destination) get() error {
-	if e := d.getPort(); e != nil {
-		return e
-	}
-	if e := d.getUser(); e != nil {
-		return e
-	}
-	if len(strings.Split(flag.Args()[0], ":")) > 2 {
-		return fmt.Errorf("error: destination must be in format [user@]destination[:port]")
-	}
-	switch {
-	case len(strings.Split(strings.Split(flag.Args()[0], ":")[0], "@")) == 1:
-		d.Host = strings.Split(strings.Split(flag.Args()[0], ":")[0], "@")[0]
-		return nil
-	case len(strings.Split(strings.Split(flag.Args()[0], ":")[0], "@")) == 2:
-		d.Host = strings.Split(strings.Split(flag.Args()[0], ":")[0], "@")[1]
-		return nil
-	default:
-		return fmt.Errorf("error: destination must be in format user@destination")
-	}
 }
