@@ -17,3 +17,4 @@ type destination struct {
 
 var d destination
 var sshCommand string = "nothing"
+var w, h int = 80, 40 // terminal size variables

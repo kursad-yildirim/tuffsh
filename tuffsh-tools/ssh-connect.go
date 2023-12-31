@@ -7,6 +7,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"runtime"
 	"strings"
 	"syscall"
 
@@ -59,7 +60,9 @@ func interactiveShell() error {
 			return e
 		}
 		defer term.Restore(f, o)
-		w, h, e := term.GetSize(f)
+		if runtime.GOOS == "linux" || runtime.GOOS == "darwin" {
+			w, h, e = term.GetSize(f)
+		}
 		if e != nil {
 			return e
 		}
