@@ -14,3 +14,4 @@ type destination struct {
 
 var help bool
 var d destination
+var sshCommand string = "nothing"

@@ -16,6 +16,26 @@ import (
 )
 
 func InitiateSSH() error {
+	if e := d.getPort(); e != nil {
+		return e
+	}
+	if e := d.getUser(); e != nil {
+		return e
+	}
+	if e := d.getHost(); e != nil {
+		fmt.Println(e)
+		return e
+	}
+	switch sshCommand {
+	case "nothing":
+		interactiveShell()
+	default:
+		runCommand()
+	}
+	return nil
+}
+
+func interactiveShell() error {
 	c, e := createClient()
 	if e != nil {
 		return e
@@ -53,6 +73,23 @@ func InitiateSSH() error {
 		return e
 	}
 	s.Wait()
+	return nil
+}
+
+func runCommand() error {
+	c, e := createClient()
+	if e != nil {
+		return e
+	}
+	s, e := c.NewSession()
+	if e != nil {
+		return e
+	}
+	s.Stdout = os.Stdout
+	s.Stderr = os.Stderr
+	if e := s.Run(sshCommand); e != nil {
+		return fmt.Errorf("failed to run: " + e.Error())
+	}
 	return nil
 }
 

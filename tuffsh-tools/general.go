@@ -26,30 +26,28 @@ func CheckArgs() error {
 	case help:
 		printUsage()
 		return fmt.Errorf("help requested")
-	case len(flag.Args()) != 1:
-		printUsage()
-		return fmt.Errorf("error: you must specify destination ssh server")
-	default:
-		if e := d.getPort(); e != nil {
-			return e
-		}
-		if e := d.getUser(); e != nil {
-			return e
-		}
-		if e := d.getHost(); e != nil {
-			fmt.Println(e)
-			return e
+	case len(flag.Args()) == 1:
+		return nil
+	case len(flag.Args()) >= 2:
+		sshCommand = flag.Args()[1]
+		for i := 2; i < len(flag.Args()); i++ {
+			sshCommand = sshCommand + " " + flag.Args()[i]
 		}
 		return nil
+	default:
+		printUsage()
+		return fmt.Errorf("error: you must specify destination ssh server")
 	}
 }
 
 func printUsage() {
 	fmt.Printf("usage: tuffsh\n")
-	fmt.Printf("\t[-i/--identity identity_file] [-k/--known-hosts known_hosts_file]\n")
+	fmt.Printf("\t[-i/--identity identity_file]\n")
+	fmt.Printf("\t[-k/--known-hosts known_hosts_file]\n")
 	fmt.Printf("\t[-p/--port ssh port number]\n")
 	fmt.Printf("\t[-h/--help\n")
 	fmt.Printf("\t[user@]destination[:port]\n")
+	fmt.Printf("\t[command]\n")
 }
 
 func (d *destination) getPort() error {
