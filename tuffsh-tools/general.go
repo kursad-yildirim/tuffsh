@@ -45,7 +45,7 @@ func printUsage() {
 	fmt.Printf("\t[-i/--identity identity_file]\n")
 	fmt.Printf("\t[-k/--known-hosts known_hosts_file]\n")
 	fmt.Printf("\t[-p/--port ssh port number]\n")
-	fmt.Printf("\t[-h/--help\n")
+	fmt.Printf("\t[-h/--help]\n")
 	fmt.Printf("\t[user@]destination[:port]\n")
 	fmt.Printf("\t[command]\n")
 }
