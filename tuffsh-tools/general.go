@@ -20,12 +20,17 @@ func CheckArgs() error {
 	flag.StringVar(&d.Port, "port", defaultSshPort, "SSH Port")
 	flag.BoolVar(&help, "h", false, "Print usage")
 	flag.BoolVar(&help, "help", false, "Print usage")
+	flag.BoolVar(&version, "v", false, "Print version")
+	flag.BoolVar(&version, "version", false, "Print version")
 	flag.Parse()
 	// Process arguments
 	switch {
 	case help:
 		printUsage()
 		return fmt.Errorf("help requested")
+	case version:
+		printVersion()
+		return fmt.Errorf("version requested")
 	case len(flag.Args()) == 1:
 		return nil
 	case len(flag.Args()) >= 2:
@@ -45,9 +50,14 @@ func printUsage() {
 	fmt.Printf("\t[-i/--identity identity_file]\n")
 	fmt.Printf("\t[-k/--known-hosts known_hosts_file]\n")
 	fmt.Printf("\t[-p/--port ssh port number]\n")
+	fmt.Printf("\t[-v/--version]\n")
 	fmt.Printf("\t[-h/--help]\n")
 	fmt.Printf("\t[user@]destination[:port]\n")
 	fmt.Printf("\t[command]\n")
+}
+
+func printVersion() {
+	fmt.Printf("%v\n", versionStr)
 }
 
 func (d *destination) getPort() error {

@@ -3,6 +3,9 @@ package tuffshtools
 const defaultPrivateKeyFile = ".ssh/id_rsa"
 const defaultKnownHostsFile = ".ssh/known_hosts"
 const defaultSshPort = "22"
+const versionStr = "tuffsh 1.0"
+
+var help, version bool
 
 type destination struct {
 	User    string
@@ -12,6 +15,5 @@ type destination struct {
 	HostKey string
 }
 
-var help bool
 var d destination
 var sshCommand string = "nothing"
